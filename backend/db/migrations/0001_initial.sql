@@ -1,0 +1,18 @@
+CREATE TABLE IF NOT EXISTS organizations(id uuid PRIMARY KEY, name text NOT NULL);
+CREATE TABLE IF NOT EXISTS users(id uuid PRIMARY KEY, login text UNIQUE NOT NULL, password_hash text NOT NULL);
+CREATE TABLE IF NOT EXISTS memberships(org uuid REFERENCES organizations, user_id uuid REFERENCES users, role text NOT NULL CHECK(role IN ('owner','admin','teacher','curator','cashier','analyst')), active boolean NOT NULL DEFAULT true, PRIMARY KEY(org,user_id));
+CREATE TABLE IF NOT EXISTS sessions(token text PRIMARY KEY,user_id uuid REFERENCES users,expires timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS persons(id uuid NOT NULL,org uuid REFERENCES organizations,name text NOT NULL, contact text NOT NULL DEFAULT '',PRIMARY KEY(org,id));
+CREATE TABLE IF NOT EXISTS classes(id uuid NOT NULL,org uuid REFERENCES organizations,name text NOT NULL, starts timestamptz NOT NULL, capacity integer NOT NULL CHECK(capacity>0),state text NOT NULL DEFAULT 'scheduled',PRIMARY KEY(org,id));
+CREATE TABLE IF NOT EXISTS bookings(id uuid NOT NULL,org uuid NOT NULL,class_id uuid NOT NULL,person_id uuid NOT NULL,state text NOT NULL DEFAULT 'booked', PRIMARY KEY(org,id),FOREIGN KEY(org,class_id) REFERENCES classes(org,id),FOREIGN KEY(org,person_id) REFERENCES persons(org,id));
+CREATE UNIQUE INDEX IF NOT EXISTS active_booking ON bookings(org,class_id,person_id) WHERE state <> 'cancelled';
+CREATE TABLE IF NOT EXISTS artworks(id uuid NOT NULL,org uuid REFERENCES organizations,number text NOT NULL,name text NOT NULL,author text NOT NULL,owner_name text NOT NULL,location text NOT NULL,condition text NOT NULL,rights_confirmed boolean NOT NULL DEFAULT false,PRIMARY KEY(org,id),UNIQUE(org,number));
+CREATE TABLE IF NOT EXISTS exhibitions(id uuid NOT NULL,org uuid REFERENCES organizations,name text NOT NULL,starts timestamptz NOT NULL,ends timestamptz NOT NULL,CHECK(ends>starts),PRIMARY KEY(org,id));
+CREATE TABLE IF NOT EXISTS movements(id uuid NOT NULL,org uuid NOT NULL,artwork_id uuid NOT NULL,source text NOT NULL,destination text NOT NULL,state text NOT NULL CHECK(state IN ('dispatched','received')),reason text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(org,id),FOREIGN KEY(org,artwork_id) REFERENCES artworks(org,id));
+CREATE UNIQUE INDEX IF NOT EXISTS in_transit ON movements(org,artwork_id) WHERE state='dispatched';
+CREATE TABLE IF NOT EXISTS payments(id uuid NOT NULL,org uuid NOT NULL,person_id uuid NOT NULL,amount bigint NOT NULL CHECK(amount>0),currency text NOT NULL CHECK(currency ~ '^[A-Z]{3}$'),reason text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(org,id),FOREIGN KEY(org,person_id) REFERENCES persons(org,id));
+CREATE TABLE IF NOT EXISTS refunds(id uuid NOT NULL,org uuid NOT NULL,payment_id uuid NOT NULL,amount bigint NOT NULL CHECK(amount>0),reason text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(org,id),FOREIGN KEY(org,payment_id) REFERENCES payments(org,id));
+CREATE TABLE IF NOT EXISTS audit(id bigserial PRIMARY KEY,org uuid NOT NULL,actor uuid NOT NULL,action text NOT NULL,object_id uuid NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS outbox(id bigint PRIMARY KEY REFERENCES audit,org uuid NOT NULL,action text NOT NULL,delivered_at timestamptz);
+CREATE TABLE IF NOT EXISTS notifications(id bigint PRIMARY KEY,org uuid NOT NULL,message text NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS idempotency(org uuid NOT NULL,key text NOT NULL,request_hash text NOT NULL,response jsonb NOT NULL,PRIMARY KEY(org,key));

@@ -1,1 +1,8 @@
+.tools/
+node_modules/
+dist/
+.env
+coverage/
+*.exe
 /work_notes/
+*.tsbuildinfo

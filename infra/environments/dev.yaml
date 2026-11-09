@@ -1,0 +1,4 @@
+environment: dev
+replicas: 1
+origin: https://delo-dev.example.invalid
+cookieSecure: true

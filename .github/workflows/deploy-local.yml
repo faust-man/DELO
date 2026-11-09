@@ -1,0 +1,47 @@
+name: deploy-local-dev
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: delo-local-dev
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/codex/dev'
+    environment: local-dev
+    runs-on: [self-hosted, Windows, delo-dev]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require successful CI for this commit
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          $headers=@{Authorization="Bearer $env:GH_TOKEN";Accept='application/vnd.github+json'}
+          $url="https://api.github.com/repos/$env:REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$env:COMMIT_SHA&status=success"
+          $runs=Invoke-RestMethod -Uri $url -Headers $headers
+          if ($runs.total_count -lt 1) { throw 'Successful verify workflow for this exact commit is required' }
+      - name: Check dedicated local context
+        shell: pwsh
+        run: |
+          if ((kubectl config current-context) -ne 'docker-desktop') { throw 'Wrong cluster' }
+          kubectl get secret delo-runtime -n delo-local
+          if ($LASTEXITCODE) { throw 'Initialize namespace and secrets using scripts/dev.ps1 first' }
+      - name: Build tested commit images
+        shell: pwsh
+        run: |
+          docker build -t delo-api:${{ github.sha }} backend
+          if ($LASTEXITCODE) { throw 'Backend build failed' }
+          docker build -t delo-web:${{ github.sha }} frontend
+          if ($LASTEXITCODE) { throw 'Frontend build failed' }
+      - name: Deploy with migration barrier
+        shell: pwsh
+        run: |
+          helm upgrade --install delo infra/helm/delo -n delo-local --set-string apiImage=delo-api:${{ github.sha }} --set-string webImage=delo-web:${{ github.sha }} --wait --timeout 5m
+          if ($LASTEXITCODE) { throw 'Rollout failed' }
+          kubectl rollout status deployment/delo-api -n delo-local --timeout=120s
+          if ($LASTEXITCODE) { throw 'API unavailable' }
