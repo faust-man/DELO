@@ -149,6 +149,7 @@ export default function App() {
     [menu, setMenu] = useState(false),
     [stats, setStats] = useState<Record<string, number>>({});
   function setOrg(next: string) {
+    if (next === currentView.current.org) return;
     loadGeneration.current++;
     currentView.current.org = next;
     setRows([]);
@@ -158,6 +159,7 @@ export default function App() {
     setOrgState(next);
   }
   function setPage(next: string) {
+    if (next === currentView.current.page) return;
     loadGeneration.current++;
     currentView.current.page = next;
     setRows([]);

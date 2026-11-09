@@ -48,4 +48,6 @@ it("never shows a delayed response from the previous organization", async () => 
   });
   expect(screen.queryByText("A private")).toBeNull();
   expect(screen.getByText("B private")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Люди" }));
+  expect(screen.getByText("B private")).toBeTruthy();
 });
