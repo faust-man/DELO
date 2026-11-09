@@ -110,14 +110,14 @@
 | NFR-04 | частично | Версионные миграции и изолированный local namespace; удалённые среды/backup не настроены. |
 | NFR-05 | частично | API health/readiness и worker; нет метрик/трейсов/alerting/структурированных логов. |
 | NFR-06 | частично | Таймауты HTTP, graceful API shutdown и outbox replay; внешних провайдеров нет. |
-| NFR-07 | частично | Go/npm версии и lock-файлы, npm audit; нет принятой browser matrix; локальный govulncheck выполнен, CI Go vuln scanning настроен, но запуск GitHub ещё не подтверждён. |
+| NFR-07 | частично | Go/npm версии и lock-файлы, npm audit; нет принятой browser matrix; локальный и GitHub govulncheck выполнены; нет принятой browser matrix. |
 
 ## Архитектурные ограничения
 
 Три процесса и нормализованные SQL-таблицы реализованы. Backend пока организован файлами сценариев внутри internal/app, без полного разделения domain/application/repository каждого модуля. Полная целевая модульная архитектура из architecture.md ещё не реализована. Нет закрытого S3, scan workflow, документов/PDF, импорта/экспорта, продаж/комиссий, кабинетов, consent/merge, инвентаризации/QR, партий и инцидентов, повторяющегося расписания и заморозок. Внешние интеграции отключены по указанию пользователя. Это ограничение не делает внутренние недостающие функции выполненными.
 
-Production намеренно не допускается Helm schema. Не настроены HA PostgreSQL/S3, Gateway/TLS, secret store, IaC/GitOps, HPA, мониторинг, backup/PITR/DR. dev/staging values — исходные шаблоны, не работающие удалённые среды. GitHub Actions CI, публикация GHCR после CI и ручной local CD описаны, но не запускались на GitHub: ветка пока локальная, self-hosted runner не зарегистрирован. Локальный deployment проверяется отдельно.
+Production намеренно не допускается Helm schema. Не настроены HA PostgreSQL/S3, Gateway/TLS, secret store, IaC/GitOps, HPA, мониторинг, backup/PITR/DR. dev/staging values — исходные шаблоны, не работающие удалённые среды. Ветка codex/dev опубликована. GitHub CI выполнил тесты, vet, npm audit, govulncheck, Helm и сборки образов: [запуск исходного кода](https://github.com/faust-man/DELO/actions/runs/42702047379). GHCR publication и ручной local CD описаны, но ещё не запускались: release workflow должен быть доступен на default branch, self-hosted runner не зарегистрирован. Локальный deployment проверяется отдельно.
 
 ## Выполненные проверки
 
-См. work_notes/implementation/backend-tests.txt и verification.md. Покрытие internal/app не означает покрытие entrypoint-процессов; нагрузка, DR и полный набор AC не пройдены. AC-09 и AC-10 проверены в описанном тестовом объёме; остальные AC нельзя считать целиком пройденными.
+Выполнены 5 Go unit/contract-тестов, 17 интеграционных сценариев на PostgreSQL и 4 frontend-теста, включая запоздалый ответ при смене организации. Go race/vet, TypeScript/build, npm audit, govulncheck, Helm lint/render, Kubernetes server dry-run пройдены. Покрытие internal/app — 55,9%. Локальные подробности: work_notes/implementation/backend-tests.txt и verification.md. Покрытие internal/app не означает покрытие entrypoint-процессов; нагрузка, DR и полный набор AC не пройдены. AC-09 и AC-10 проверены в описанном тестовом объёме; остальные AC нельзя считать целиком пройденными.
