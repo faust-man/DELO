@@ -385,7 +385,14 @@ func execute(ctx context.Context, tx pgx.Tx, org, role, path, id string, v map[s
 	return fmt.Errorf("Недостаточно прав")
 }
 func Open(ctx context.Context) (*App, error) {
-	db, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
+	config, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+	if err != nil {
+		return nil, err
+	}
+	// Bound the total database footprint when every module has its own pool.
+	config.MaxConns = 4
+	config.MinConns = 0
+	db, err := pgxpool.NewWithConfig(ctx, config)
 	return &App{DB: db, Origin: os.Getenv("APP_ORIGIN"), Secure: os.Getenv("COOKIE_SECURE") != "false"}, err
 }
 func Bootstrap(ctx context.Context, db *pgxpool.Pool) error {

@@ -6,10 +6,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
+	defer cancel()
 	a, err := app.Open(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -19,7 +21,37 @@ func main() {
 		log.Fatal("migrate | bootstrap")
 	}
 	switch os.Args[1] {
+	case "wait-migrations":
+		waitCtx, cancel := context.WithTimeout(ctx, 150*time.Second)
+		defer cancel()
+		files, err := filepath.Glob("db/migrations/*.sql")
+		if err != nil || len(files) == 0 {
+			log.Fatal("migration files unavailable")
+		}
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			ready := true
+			for _, file := range files {
+				var done bool
+				if a.DB.QueryRow(waitCtx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE name=$1)", filepath.Base(file)).Scan(&done) != nil || !done {
+					ready = false
+					break
+				}
+			}
+			if ready {
+				return
+			}
+			select {
+			case <-waitCtx.Done():
+				log.Fatal("migration readiness timeout")
+			case <-ticker.C:
+			}
+		}
 	case "migrate":
+		if err := waitForDatabase(ctx, a.DB.Ping); err != nil {
+			log.Fatal("database readiness timeout")
+		}
 		conn, err := a.DB.Acquire(ctx)
 		if err != nil {
 			log.Fatal(err)
@@ -76,5 +108,22 @@ func main() {
 		}
 	default:
 		log.Fatal("unknown command")
+	}
+}
+
+// A clean kubectl apply creates PostgreSQL and this Job concurrently.
+// Retry connection establishment only; SQL migration failures still stop the Job.
+func waitForDatabase(ctx context.Context, ping func(context.Context) error) error {
+	for {
+		if err := ping(ctx); err == nil {
+			return nil
+		}
+		timer := time.NewTimer(time.Second)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
 	}
 }

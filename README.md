@@ -1,20 +1,26 @@
 # ДЕЛО · тестовая версия
 
-CRM художественной студии: Go API + отдельный worker, React/TypeScript, PostgreSQL, Helm, Docker Desktop Kubernetes. Это частичная реализация ТЗ, не готовый production. Подробный [статус каждого требования](docs/implementation-status.md) отделяет реализованные сценарии от планов.
+CRM художественной студии: 13 профильных Go API, gateway, worker, React/TypeScript и PostgreSQL. [Сервисная архитектура, границы и kubectl](docs/microservices.md). Это частичная реализация ТЗ, не готовый production. Подробный [статус каждого требования](docs/implementation-status.md) отделяет реализованные сценарии от планов.
 
-## Запуск на Windows
+## Linux: запуск через kubectl
 
-Требуются Docker Desktop с включённым Kubernetes (`docker-desktop`), kubectl, Helm 3, Node.js 24+, Go 1.27.3 для разработки. Локально скачанные Go/Helm лежат в игнорируемом `.tools/`; при переносе установите их самостоятельно.
+После [подготовки отдельных Docker-образов, registry и секретов](docs/microservices.md):
 
-```powershell
-./scripts/dev.ps1 -Build -Bootstrap
+```bash
+kubectl apply -n delo-micro-local -k infra/k8s/local
+kubectl rollout status deployment -n delo-micro-local --timeout=300s
+kubectl port-forward -n delo-micro-local service/delo-web 8088:8080
 ```
 
-Скрипт создаёт namespace `delo-local`, случайный пароль БД в Kubernetes Secret, PostgreSQL с PVC, выполняет миграции, запускает API/web/worker. Пароль владельца `owner@demo.local` вводится интерактивно. Повторный bootstrap существующего владельца завершится ошибкой, данные не перезапишет. Следующие запуски: `./scripts/dev.ps1 -Build`. Откройте [локальный интерфейс](http://localhost:8088); port-forward должен оставаться запущенным. Секреты не сохраняются в Git.
+Образы: identity, contacts, organizations, education, bookings, subscriptions, finance, artworks, inventory, exhibitions, reports, audit, notifications, gateway, worker, web и служебный admin. Каждый Go-сервис имеет свой entrypoint и образ; переключение его роли через переменную окружения не поддерживается. Gateway не получает доступ к БД. Общие бизнес-библиотека и схема PostgreSQL пока сохраняются: независимость данных сервисов ещё не реализована.
+
+Манифесты включают migration Job и ожидание схемы перед запуском API/worker. PostgreSQL использует PVC. Первого владельца создаёт отдельный bootstrap Job — [порядок установки и обновления](docs/microservices.md). Интерфейс доступен по [localhost:8088](http://localhost:8088), пока работает port-forward. Kubernetes-профиль не зависит от Docker Desktop и Helm. Для разработки на Windows сохранён scripts/dev.ps1; основной способ Linux-поставки — команды выше.
 
 Для разработки frontend: `cd frontend; npm ci; npm run dev`. Vite проксирует API на localhost:8080; запустите API с `DATABASE_URL`, `APP_ORIGIN=http://localhost:5173`, `COOKIE_SECURE=false` по `.env.example`. Сервер не читает `.env` автоматически.
 
 ## Проверки
+
+[Протокол проверки 17 Docker-сборок, SQL-тестов и чистого Kubernetes-запуска](docs/build-verification.md).
 
 ```powershell
 docker run -d --name delo-integration -e POSTGRES_PASSWORD=integration-only -p 127.0.0.1:55432:5432 postgres:17.6-alpine
@@ -22,7 +28,7 @@ $env:TEST_DATABASE_URL='postgres://postgres:integration-only@localhost:55432/pos
 ./scripts/check.ps1
 ```
 
-Каждый интеграционный прогон создаёт отдельную случайную схему и удаляет только её. Не используйте production URL. CI выполняет Go race/vet, frontend тесты/build/audit, Helm lint/render и сборки образов. Release workflow публикует образы в GHCR после успешного verify того же commit; фактический GitHub запуск требует push ветки и доступности release workflow на default branch. Локальная поставка выполняется `dev.ps1`. Для ручного CD есть `deploy-local.yml`: нужен отдельно зарегистрированный Windows self-hosted runner с меткой `delo-dev`, Helm/Docker/kubectl, защищённый environment `local-dev` и инициализированный namespace. Workflow проверяет успешный CI для точного commit. Runner в этом сеансе не регистрировался. Ветка codex/dev опубликована; [CI исходного кода](https://github.com/faust-man/DELO/actions/runs/42702047379) выполнил тесты, vet, проверки уязвимостей, Helm и сборки образов. Публикация GHCR и self-hosted CD ещё не активированы.
+Каждый интеграционный прогон создаёт отдельную случайную схему и удаляет только её. Не используйте production URL. CI выполняет Go race/vet, frontend тесты/build/audit, legacy Helm render, Kustomize render и проверки ресурсов. Все 17 Docker-образов собираются в отдельных Linux matrix jobs. Release workflow настроен на публикацию отдельных GHCR-образов после успешного verify того же commit; изменённый workflow в этом сеансе не запускался. Прежний Windows deploy-local workflow относится к совместимой Helm-установке и не является Linux-поставкой.
 
 ## Возможности тестовой версии
 

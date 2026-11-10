@@ -1,0 +1,18 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "delo-contacts"
+  },
+  "spec": {
+    "selector": {
+      "app": "delo-contacts"
+    },
+    "ports": [
+      {
+        "port": 8080,
+        "targetPort": 8080
+      }
+    ]
+  }
+}

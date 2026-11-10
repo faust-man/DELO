@@ -1,0 +1,175 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "delo-identity"
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "app": "delo-identity"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "delo-identity",
+          "delo-tier": "module",
+          "delo-db-client": "true"
+        }
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "securityContext": {
+          "runAsNonRoot": true,
+          "runAsUser": 65532,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "containers": [
+          {
+            "name": "identity",
+            "image": "delo-identity:micro",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "25m",
+                "memory": "32Mi",
+                "ephemeral-storage": "16Mi"
+              },
+              "limits": {
+                "cpu": "250m",
+                "memory": "128Mi",
+                "ephemeral-storage": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "readOnlyRootFilesystem": true,
+              "capabilities": {
+                "drop": [
+                  "ALL"
+                ]
+              }
+            },
+            "volumeMounts": [
+              {
+                "name": "tmp",
+                "mountPath": "/tmp"
+              }
+            ],
+            "env": [
+              {
+                "name": "DATABASE_URL",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "delo-runtime",
+                    "key": "DATABASE_URL"
+                  }
+                }
+              }
+            ],
+            "envFrom": [
+              {
+                "configMapRef": {
+                  "name": "delo-config"
+                }
+              }
+            ],
+            "ports": [
+              {
+                "containerPort": 8080
+              }
+            ],
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/readyz",
+                "port": 8080
+              },
+              "periodSeconds": 10,
+              "timeoutSeconds": 2,
+              "failureThreshold": 3
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": 8080
+              },
+              "periodSeconds": 10,
+              "timeoutSeconds": 2,
+              "failureThreshold": 3
+            },
+            "startupProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": 8080
+              },
+              "periodSeconds": 2,
+              "failureThreshold": 30
+            }
+          }
+        ],
+        "volumes": [
+          {
+            "name": "tmp",
+            "emptyDir": {
+              "sizeLimit": "64Mi"
+            }
+          }
+        ],
+        "terminationGracePeriodSeconds": 30,
+        "initContainers": [
+          {
+            "name": "wait-migrations",
+            "image": "delo-admin:micro",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "25m",
+                "memory": "32Mi",
+                "ephemeral-storage": "16Mi"
+              },
+              "limits": {
+                "cpu": "250m",
+                "memory": "128Mi",
+                "ephemeral-storage": "128Mi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "readOnlyRootFilesystem": true,
+              "capabilities": {
+                "drop": [
+                  "ALL"
+                ]
+              }
+            },
+            "volumeMounts": [
+              {
+                "name": "tmp",
+                "mountPath": "/tmp"
+              }
+            ],
+            "command": [
+              "/app/admin",
+              "wait-migrations"
+            ],
+            "env": [
+              {
+                "name": "DATABASE_URL",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "delo-runtime",
+                    "key": "DATABASE_URL"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

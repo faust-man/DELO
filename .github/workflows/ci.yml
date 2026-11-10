@@ -50,5 +50,19 @@ jobs:
       - run: helm template delo infra/helm/delo > rendered.yaml
       - run: helm template delo infra/helm/delo -f infra/environments/dev.yaml > /dev/null
       - run: helm template delo infra/helm/delo -f infra/environments/staging.yaml > /dev/null
-      - run: docker build -t delo-api:ci backend
-      - run: docker build -t delo-web:ci frontend
+      - uses: azure/setup-kubectl@v4
+      - run: python3 scripts/generate-k8s.py
+      - run: git diff --exit-code -- infra/k8s
+      - run: kubectl kustomize infra/k8s/local > rendered-kustomize.yaml
+      - run: python3 scripts/check-k8s.py
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [identity, contacts, organizations, education, bookings, subscriptions, finance, artworks, inventory, exhibitions, reports, audit, notifications, gateway, worker, admin, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/build-images.sh "${{ matrix.component }}"
+        env:
+          IMAGE_TAG: ci

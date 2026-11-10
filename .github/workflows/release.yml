@@ -12,7 +12,8 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     strategy:
-      matrix: {component: [backend, frontend]}
+      matrix:
+        component: [identity, contacts, organizations, education, bookings, subscriptions, finance, artworks, inventory, exhibitions, reports, audit, notifications, gateway, worker, admin, web]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,10 +27,9 @@ jobs:
         id: names
         shell: bash
         run: echo "repository=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
-        id: build
-        with:
-          context: ${{ matrix.component }}
-          push: true
-          tags: ghcr.io/${{ steps.names.outputs.repository }}-${{ matrix.component }}:${{ github.event.workflow_run.head_sha }}
-      - run: echo '${{ steps.build.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"
+      - name: Build and publish service image
+        env:
+          IMAGE_PREFIX: ghcr.io/${{ steps.names.outputs.repository }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+          PUSH: 'true'
+        run: sh scripts/build-images.sh "${{ matrix.component }}"
