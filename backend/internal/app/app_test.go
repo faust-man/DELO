@@ -95,6 +95,12 @@ func TestIntegration(t *testing.T) {
 		}
 	}
 	t.Run("temporary demo admin", func(t *testing.T) {
+		if err := BootstrapDemoAdmin(ctx, pool); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := pool.Exec(ctx, "UPDATE users SET login='admin',password_hash='old-hash' WHERE id='00000000-0000-4000-8000-000000000001'"); err != nil {
+			t.Fatal(err)
+		}
 		for range 2 {
 			if err := BootstrapDemoAdmin(ctx, pool); err != nil {
 				t.Fatal(err)
@@ -102,7 +108,7 @@ func TestIntegration(t *testing.T) {
 		}
 		a := &App{DB: pool, Origin: "http://test.local"}
 		for _, password := range []string{"wrong", "admin"} {
-			r := httptest.NewRequest("POST", "/api/v1/login", strings.NewReader(fmt.Sprintf(`{"login":"admin","password":%q}`, password)))
+			r := httptest.NewRequest("POST", "/api/v1/login", strings.NewReader(fmt.Sprintf(`{"login":"admin@admin.com","password":%q}`, password)))
 			r.Header.Set("Origin", a.Origin)
 			w := httptest.NewRecorder()
 			a.Handler().ServeHTTP(w, r)

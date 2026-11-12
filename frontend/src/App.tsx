@@ -255,7 +255,7 @@ export default function App() {
             <input
               name="login"
               type="text"
-              defaultValue="admin"
+              defaultValue="admin@admin.com"
               required
               autoComplete="username"
             />

@@ -25,7 +25,7 @@ func BootstrapDemoAdmin(ctx context.Context, db *pgxpool.Pool) error {
 		sql  string
 		args []any
 	}{
-		{"INSERT INTO users(id,login,password_hash) VALUES($1,'admin',$2) ON CONFLICT(id) DO UPDATE SET password_hash=EXCLUDED.password_hash WHERE users.login='admin'", []any{uid, string(pw)}},
+		{"INSERT INTO users(id,login,password_hash) VALUES($1,'admin@admin.com',$2) ON CONFLICT(id) DO UPDATE SET login=EXCLUDED.login,password_hash=EXCLUDED.password_hash WHERE users.login IN ('admin','admin@admin.com')", []any{uid, string(pw)}},
 		{"INSERT INTO organizations(id,name) VALUES($1,'ДЕЛО • демо-студия') ON CONFLICT DO NOTHING", []any{org}},
 		{"INSERT INTO memberships(org,user_id,role) VALUES($1,$2,'owner') ON CONFLICT(org,user_id) DO UPDATE SET role='owner',active=true", []any{org, uid}},
 		{"INSERT INTO organization_policies(org,version,demo,cancel_hours) VALUES($1,1,true,24) ON CONFLICT DO NOTHING", []any{org}},

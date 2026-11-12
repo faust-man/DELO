@@ -38,4 +38,7 @@ $env:TEST_DATABASE_URL='postgres://postgres:integration-only@localhost:55432/pos
 
 Реальные деньги, онлайн-провайдеры, файлы/S3, PDF и production отключены/не реализованы. HTTP и cookie без Secure разрешены исключительно локально. Неизвестные политики отмен/списаний не заменяются выдуманными правилами. Проектные документы остаются источником целевых требований, а не доказательством их реализации.
 
-Временный локальный вход `admin` / `admin`: `kubectl apply -f infra/k8s/local/demo-admin.yaml`. Создаётся отдельная демо-студия; подробнее — [настройки демо](docs/demo-settings.md).
+Временный локальный вход `admin@admin.com` / `admin`: `kubectl apply -f infra/k8s/local/demo-admin.yaml`. Создаётся отдельная демо-студия; подробнее — [настройки демо](docs/demo-settings.md).
+
+
+Единый запуск проверок в Bash: `TEST_DATABASE_URL=<URL отдельной тестовой PostgreSQL> sh scripts/check.sh`. Требуются Go, Node.js/npm, Python с зависимостями из scripts/requirements-k8s.txt и kubectl; предварительно установите npm-зависимости в frontend. Команда запускает backend (включая интеграционные тесты), frontend, сборку и проверки манифестов; без тестовой БД она завершается ошибкой. Тестовая БД должна быть отдельной от базы CRM.
