@@ -18,7 +18,7 @@ func main() {
 	}
 	defer a.DB.Close()
 	if len(os.Args) < 2 {
-		log.Fatal("migrate | bootstrap")
+		log.Fatal("migrate | bootstrap | demo-admin | demo-policy")
 	}
 	switch os.Args[1] {
 	case "wait-migrations":
@@ -93,6 +93,10 @@ func main() {
 			}
 		}
 		if err = tx.Commit(ctx); err != nil {
+			log.Fatal(err)
+		}
+	case "demo-admin":
+		if err = app.BootstrapDemoAdmin(ctx, a.DB); err != nil {
 			log.Fatal(err)
 		}
 	case "bootstrap":

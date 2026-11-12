@@ -251,11 +251,11 @@ export default function App() {
           <h2>Рады видеть вас</h2>
           <p>Войдите в пространство вашей студии</p>
           <label>
-            Электронная почта
+            Логин или электронная почта
             <input
               name="login"
-              type="email"
-              defaultValue="owner@demo.local"
+              type="text"
+              defaultValue="admin"
               required
               autoComplete="username"
             />

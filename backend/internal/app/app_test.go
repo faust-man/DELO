@@ -94,6 +94,43 @@ func TestIntegration(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	t.Run("temporary demo admin", func(t *testing.T) {
+		for range 2 {
+			if err := BootstrapDemoAdmin(ctx, pool); err != nil {
+				t.Fatal(err)
+			}
+		}
+		a := &App{DB: pool, Origin: "http://test.local"}
+		for _, password := range []string{"wrong", "admin"} {
+			r := httptest.NewRequest("POST", "/api/v1/login", strings.NewReader(fmt.Sprintf(`{"login":"admin","password":%q}`, password)))
+			r.Header.Set("Origin", a.Origin)
+			w := httptest.NewRecorder()
+			a.Handler().ServeHTTP(w, r)
+			if password == "wrong" {
+				if w.Code != http.StatusUnauthorized {
+					t.Fatalf("wrong password: %d", w.Code)
+				}
+				continue
+			}
+			if w.Code != http.StatusOK || len(w.Result().Cookies()) == 0 {
+				t.Fatalf("login: %d %s", w.Code, w.Body.String())
+			}
+			me := httptest.NewRequest("GET", "/api/v1/me", nil)
+			me.AddCookie(w.Result().Cookies()[0])
+			result := httptest.NewRecorder()
+			a.Handler().ServeHTTP(result, me)
+			var memberships []struct {
+				ID   string `json:"id"`
+				Role string `json:"role"`
+			}
+			if err := json.Unmarshal(result.Body.Bytes(), &memberships); err != nil {
+				t.Fatal(err)
+			}
+			if result.Code != http.StatusOK || len(memberships) != 1 || memberships[0].ID != "00000000-0000-4000-8000-000000000002" || memberships[0].Role != "owner" {
+				t.Fatalf("demo access: %d %s", result.Code, result.Body.String())
+			}
+		}
+	})
 	org, other, uid, person, class := ID(), ID(), ID(), ID(), ID()
 	pw, _ := bcrypt.GenerateFromPassword([]byte("test-password-long"), bcrypt.MinCost)
 	for _, q := range []struct {

@@ -15,3 +15,18 @@
 | Провайдеры | Email/SMS/онлайн-оплата/подпись отключены |
 
 Политика отмен хранится версионно в PostgreSQL; событие отмены ссылается на версию. Bootstrap включает версию 1. Для ранее созданной локальной БД после миграции служебная команда `admin demo-policy` требует `ENABLE_DEMO_POLICY=true`. Без явной политики отмена блокируется. Изменение политики через UI пока не реализовано. Пропуски, уважительные причины, коррекции и заморозки пока блокируются; не трактуются как присутствие.
+
+## Временный вход admin / admin (12 ноября 2026)
+
+По указанию заказчика добавлена служебная команда `admin demo-admin`: она создаёт отдельную демо-студию и пользователя `admin` с паролем `admin` и ролью владельца только этой студии. Повторный запуск восстанавливает пароль и доступ без дублирования студии. Существующие организации и пользователи не меняются. Пароль хранится как bcrypt-хеш, вход использует обычную сессию и ограничение попыток.
+
+Для локального Kubernetes используйте отдельный Job (он не входит в автоматический Kustomize-запуск). Сначала соберите обновлённый образ admin и web по обычному порядку развёртывания. Для локального Docker-образа admin: `docker build --target admin -t delo-admin:micro backend`.
+
+```sh
+kubectl --context docker-desktop apply -f infra/k8s/local/demo-admin.yaml
+kubectl --context docker-desktop -n delo-micro-local wait --for=condition=complete job/delo-demo-admin --timeout=180s
+```
+
+Если Job уже выполнялся, перед повторным запуском удалите его: `kubectl --context docker-desktop -n delo-micro-local delete job delo-demo-admin --ignore-not-found`. Затем повторите команды выше. При ошибке смотрите `kubectl --context docker-desktop -n delo-micro-local logs job/delo-demo-admin`.
+
+Job использует DATABASE_URL из локального Secret delo-runtime и namespace delo-micro-local. Dev, staging и production автоматически эту учётную запись не получают. Обычный bootstrap владельца сохраняется. Временный вход удаляется перед использованием реальных данных.
