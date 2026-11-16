@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: delo-demo-admin
+  namespace: delo-micro-local
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 180
+  template:
+    metadata:
+      labels:
+        delo-db-client: 'true'
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: bootstrap
+        image: delo-admin:micro
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+            ephemeral-storage: 16Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+            ephemeral-storage: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        command:
+        - /app/admin
+        - demo-admin
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: delo-runtime
+              key: DATABASE_URL
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Never

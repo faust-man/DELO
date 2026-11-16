@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS artwork_receipts(id uuid NOT NULL,org uuid NOT NULL,movement_id uuid NOT NULL,condition text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(org,id),UNIQUE(org,movement_id),FOREIGN KEY(org,movement_id) REFERENCES movements(org,id));

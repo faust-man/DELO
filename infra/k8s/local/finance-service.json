@@ -1,0 +1,18 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "delo-finance"
+  },
+  "spec": {
+    "selector": {
+      "app": "delo-finance"
+    },
+    "ports": [
+      {
+        "port": 8080,
+        "targetPort": 8080
+      }
+    ]
+  }
+}

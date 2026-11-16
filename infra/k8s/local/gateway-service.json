@@ -1,0 +1,18 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "delo-gateway"
+  },
+  "spec": {
+    "selector": {
+      "app": "delo-gateway"
+    },
+    "ports": [
+      {
+        "port": 8080,
+        "targetPort": 8080
+      }
+    ]
+  }
+}

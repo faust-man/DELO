@@ -1,0 +1,68 @@
+name: verify
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_PASSWORD: integration-only
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:integration-only@localhost:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.27.4', cache-dependency-path: backend/go.sum}
+      - run: go test -race -count=1 -coverprofile=coverage.out ./...
+        working-directory: backend
+      - run: go vet ./...
+        working-directory: backend
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+        working-directory: backend
+      - uses: actions/upload-artifact@v4
+        with: {name: backend-coverage, path: backend/coverage.out}
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run: {working-directory: frontend}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24', cache: npm, cache-dependency-path: frontend/package-lock.json}
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4.3.0
+        with: {version: v3.17.3}
+      - run: helm lint infra/helm/delo
+      - run: helm template delo infra/helm/delo > rendered.yaml
+      - run: helm template delo infra/helm/delo -f infra/environments/dev.yaml > /dev/null
+      - run: helm template delo infra/helm/delo -f infra/environments/staging.yaml > /dev/null
+      - uses: azure/setup-kubectl@v4
+      - run: python3 scripts/generate-k8s.py
+      - run: git diff --exit-code -- infra/k8s
+      - run: kubectl kustomize infra/k8s/local > rendered-kustomize.yaml
+      - run: python3 scripts/check-k8s.py
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [identity, contacts, organizations, education, bookings, subscriptions, finance, artworks, inventory, exhibitions, reports, audit, notifications, gateway, worker, admin, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/build-images.sh "${{ matrix.component }}"
+        env:
+          IMAGE_TAG: ci

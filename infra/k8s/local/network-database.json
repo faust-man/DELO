@@ -1,0 +1,36 @@
+{
+  "apiVersion": "networking.k8s.io/v1",
+  "kind": "NetworkPolicy",
+  "metadata": {
+    "name": "delo-database"
+  },
+  "spec": {
+    "podSelector": {
+      "matchLabels": {
+        "app": "delo-db"
+      }
+    },
+    "policyTypes": [
+      "Ingress"
+    ],
+    "ingress": [
+      {
+        "from": [
+          {
+            "podSelector": {
+              "matchLabels": {
+                "delo-db-client": "true"
+              }
+            }
+          }
+        ],
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 5432
+          }
+        ]
+      }
+    ]
+  }
+}

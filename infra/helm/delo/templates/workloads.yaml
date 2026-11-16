@@ -1,0 +1,79 @@
+{{- range $name := list "api" "web" "worker" }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: delo-{{ $name }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delo-{{ $name }}
+spec:
+  replicas: {{ $.Values.replicas }}
+  selector:
+    matchLabels: {app: delo-{{ $name }}}
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata:
+      labels: {app: delo-{{ $name }}}
+      annotations:
+        delo/revision: {{ $.Release.Revision | quote }}
+    spec:
+      serviceAccountName: delo-{{ $name }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{ if eq $name "web" }}101{{ else }}65532{{ end }}
+        seccompProfile: {type: RuntimeDefault}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ $name }}
+          image: {{ if eq $name "web" }}{{ $.Values.webImage | quote }}{{ else }}{{ $.Values.apiImage | quote }}{{ end }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          {{- if eq $name "worker" }}
+          command: [/app/worker]
+          {{- end }}
+          ports: [{containerPort: 8080}]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.secretName }}, key: DATABASE_URL}
+            - {name: APP_ORIGIN, value: {{ $.Values.origin | quote }}}
+            - {name: COOKIE_SECURE, value: {{ $.Values.cookieSecure | quote }}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources: {{ $.Values.resources | toJson }}
+          {{- if ne $name "worker" }}
+          readinessProbe:
+            httpGet: {path: {{ if eq $name "api" }}/readyz{{ else }}/{{ end }}, port: 8080}
+            initialDelaySeconds: 2
+          livenessProbe:
+            httpGet: {path: {{ if eq $name "api" }}/healthz{{ else }}/{{ end }}, port: 8080}
+            initialDelaySeconds: 10
+          {{- end }}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 64Mi}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: delo-{{ $name }}}
+{{- if ne $name "worker" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: delo-{{ $name }}
+spec:
+  selector: {app: delo-{{ $name }}}
+  ports: [{port: 8080, targetPort: 8080}]
+{{- end }}
+{{- end }}

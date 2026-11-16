@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.json
+  - runtime.json
+  - identity.json
+  - identity-service.json
+  - contacts.json
+  - contacts-service.json
+  - organizations.json
+  - organizations-service.json
+  - education.json
+  - education-service.json
+  - bookings.json
+  - bookings-service.json
+  - subscriptions.json
+  - subscriptions-service.json
+  - finance.json
+  - finance-service.json
+  - artworks.json
+  - artworks-service.json
+  - inventory.json
+  - inventory-service.json
+  - exhibitions.json
+  - exhibitions-service.json
+  - reports.json
+  - reports-service.json
+  - audit.json
+  - audit-service.json
+  - notifications.json
+  - notifications-service.json
+  - gateway.json
+  - gateway-service.json
+  - worker.json
+  - web.json
+  - web-service.json
+  - network.json
+  - network-modules.json
+  - network-gateway.json
+  - network-database.json
+  - postgres.yaml
+  - nginx.json
+  - migrate.json

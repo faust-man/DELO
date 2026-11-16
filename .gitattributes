@@ -1,0 +1,5 @@
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.py text eol=lf
+infra/k8s/**/*.json text eol=lf
+infra/k8s/**/*.yaml text eol=lf

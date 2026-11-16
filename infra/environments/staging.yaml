@@ -1,0 +1,4 @@
+environment: staging
+replicas: 2
+origin: https://delo-staging.example.invalid
+cookieSecure: true

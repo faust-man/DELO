@@ -1,0 +1,10 @@
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "delo-nginx"
+  },
+  "data": {
+    "nginx.conf": "pid /tmp/nginx.pid;\nevents {}\nhttp {\n include /etc/nginx/mime.types;\n client_body_temp_path /tmp/client;\n proxy_temp_path /tmp/proxy;\n fastcgi_temp_path /tmp/fastcgi;\n uwsgi_temp_path /tmp/uwsgi;\n scgi_temp_path /tmp/scgi;\n server { listen 8080; root /usr/share/nginx/html;\n add_header X-Content-Type-Options nosniff;\n add_header Content-Security-Policy \"default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'\";\n location /api/ { proxy_pass http://delo-gateway:8080; proxy_set_header Host $host; }\n location / { try_files $uri /index.html; }\n }\n}\n"
+  }
+}

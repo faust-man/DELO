@@ -1,0 +1,5 @@
+.git
+.tools
+**/node_modules
+**/dist
+work_notes
